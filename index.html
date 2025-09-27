@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>📚 نظام الدرجات - Firebase</title>
+<style>
+body{
+    font-family: Tahoma, Arial, sans-serif;
+    background:#f0f4f7;
+    margin:0;
+    padding:0;
+}
+header{
+    background:#4a90e2;
+    color:#fff;
+    text-align:center;
+    padding:20px;
+    font-size:24px;
+}
+.container{
+    max-width:900px;
+    margin:30px auto;
+    background:#fff;
+    padding:20px;
+    border-radius:10px;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:30px;
+}
+h3{color:#4a90e2;text-align:center;}
+input,button{
+    width:90%;
+    padding:10px;
+    margin:8px 0;
+    border:1px solid #ccc;
+    border-radius:6px;
+    font-size:16px;
+}
+button{
+    background:#4a90e2;
+    color:#fff;
+    cursor:pointer;
+    transition:.2s;
+}
+button:hover{background:#357abd;}
+.section{
+    background:#fafafa;
+    padding:15px;
+    border-radius:8px;
+    text-align:center;
+    border:1px solid #ddd;
+}
+.hidden{display:none;}
+table{
+    width:100%;
+    border-collapse: collapse;
+    margin-top:10px;
+}
+table th, table td{
+    border:1px solid #ddd;
+    padding:8px;
+    text-align:center;
+}
+table th{
+    background:#4a90e2;
+    color:#fff;
+}
+</style>
+</head>
+<body>
+
+<header>📚 نظام تسجيل الدرجات - Firebase</header>
+
+<div class="container">
+    <!-- قسم الطالب -->
+    <div class="section">
+        <h3>قسم الطالب</h3>
+        <input type="text" id="studentName" placeholder="اسم الطالب">
+        <input type="text" id="studentClass" placeholder="اسم الفصل">
+        <button onclick="registerStudent()">تسجيل الطالب</button>
+
+        <div id="questionArea" class="hidden">
+            <p><strong>سؤال النص:</strong>  
+               <br>ما هي عاصمة المملكة العربية السعودية؟
+            </p>
+            <input type="text" id="studentAnswer" placeholder="اكتب الإجابة">
+            <button onclick="submitAnswer()">إرسال الإجابة</button>
+            <p id="answerMsg"></p>
+        </div>
+    </div>
+
+    <!-- قسم المعلم -->
+    <div class="section">
+        <h3>قسم المعلم</h3>
+        <input type="text" id="teacherUser" placeholder="اسم المستخدم">
+        <input type="password" id="teacherPass" placeholder="كلمة المرور">
+        <button onclick="teacherLogin()">دخول المعلم</button>
+
+        <div id="teacherPanel" class="hidden">
+            <p><strong>جدول الطلاب الذين أجابوا:</strong></p>
+            <table id="studentsTable">
+                <thead>
+                    <tr>
+                        <th>الاسم</th>
+                        <th>الفصل</th>
+                        <th>الدرجة</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+            <button onclick="teacherLogout()">🚪 خروج المعلم</button>
+        </div>
+    </div>
+</div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<script>
+// --- إعداد Firebase ---
+const firebaseConfig = {
+  apiKey: "AIzaSyBvkvZEqKRQu4FjLPZnZKMswdPQgnbtDqs",
+  authDomain: "cs99-6e4e5.firebaseapp.com",
+  projectId: "cs99-6e4e5",
+  storageBucket: "cs99-6e4e5.firebasestorage.app",
+  messagingSenderId: "1059739574129",
+  appId: "1:1059739574129:web:696b65c1f10ef90f14e0d0",
+  measurementId: "G-HRJH546JE1"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// --- دوال الطلاب ---
+function registerStudent(){
+    const name = document.getElementById("studentName").value.trim();
+    const cls  = document.getElementById("studentClass").value.trim();
+    if(!name || !cls){alert("أدخل الاسم والفصل");return;}
+
+    // تحقق من قاعدة البيانات إذا الطالب سبق وأجاب
+    db.collection("students").doc(name + "_" + cls).get().then(doc=>{
+        if(doc.exists){
+            alert("لقد أجبت سابقاً، لا يمكنك الإجابة مرة أخرى.");
+        }else{
+            sessionStorage.setItem("currentStudent", JSON.stringify({name, cls}));
+            document.getElementById("questionArea").classList.remove("hidden");
+        }
+    });
+}
+
+function submitAnswer(){
+    const ans = document.getElementById("studentAnswer").value.trim();
+    const current = JSON.parse(sessionStorage.getItem("currentStudent")||"{}");
+    if(!current.name){alert("سجل بياناتك أولاً");return;}
+    let score = 0;
+    if(ans === "الرياض" || ans.toLowerCase() === "riyadh"){
+        score = 10;
+        document.getElementById("answerMsg").textContent = "إجابة صحيحة ✅";
+    }else{
+        document.getElementById("answerMsg").textContent = "إجابة خاطئة ❌";
+    }
+
+    db.collection("students").doc(current.name + "_" + current.cls).set({
+        name: current.name,
+        cls: current.cls,
+        score: score
+    }).then(()=>{
+        document.getElementById("studentAnswer").value = "";
+        alert("تم حفظ إجابتك.");
+    });
+}
+
+// --- دوال المعلم ---
+function teacherLogin(){
+    const u = document.getElementById("teacherUser").value.trim();
+    const p = document.getElementById("teacherPass").value.trim();
+    if(u==="teacher" && p==="1234"){
+        document.getElementById("teacherPanel").classList.remove("hidden");
+        refreshTable();
+    }else{
+        alert("بيانات المعلم غير صحيحة");
+    }
+}
+
+function teacherLogout(){
+    document.getElementById("teacherPanel").classList.add("hidden");
+}
+
+function refreshTable(){
+    const tbody = document.querySelector("#studentsTable tbody");
+    tbody.innerHTML = "";
+    db.collection("students").get().then(snapshot=>{
+        snapshot.forEach(doc=>{
+            const s = doc.data();
+            const row = document.createElement("tr");
+            row.innerHTML = `<td>${s.name}</td><td>${s.cls}</td><td>${s.score}</td>`;
+            tbody.appendChild(row);
+        });
+    });
+}
+
+</script>
+
+</body>
+</html>
+
+
+
